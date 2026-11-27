@@ -1,6 +1,6 @@
 name: Repository checks
 
-on:
+'on':
   pull_request:
     branches: [main]
   push:
@@ -26,12 +26,14 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: python ci/validate.py "$(git merge-base "$BASE_SHA" "$HEAD_SHA")" "$HEAD_SHA"
+        run: |
+          diff_base=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+          python ci/validate.py "$diff_base" "$HEAD_SHA"
       - if: github.event_name == 'push'
         run: python ci/validate.py
 
   release-tag:
-    if: github.event_name == 'push' && github.ref_protected
+    if: github.event_name == 'push'
     needs: validate
     runs-on: ubuntu-latest
     permissions:
