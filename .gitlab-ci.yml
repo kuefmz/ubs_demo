@@ -43,26 +43,41 @@ repo-checks:
 
       def validate(base=None, head=None):
           errors = []
-          metadata = yaml.safe_load(Path("project.yaml").read_text(encoding="utf-8"))
+          metadata = yaml.safe_load(Path("project_config.yaml").read_text(encoding="utf-8"))
           if not isinstance(metadata, dict):
-              return ["project.yaml must contain a mapping"]
+              return ["project_config.yaml must contain a mapping"]
 
-          for field in ("project_id", "project_name", "owner", "groupshare_location"):
+          if type(metadata.get("project_id")) is not int:
+              errors.append("project_id must be an integer")
+
+          for field in (
+              "project_name",
+              "owner",
+              "groupshare_location_logs_green",
+              "adt_application_id_prod",
+              "adt_application_id_uat",
+          ):
               value = metadata.get(field)
               if not isinstance(value, str) or not value.strip():
                   errors.append(f"{field} must be a non-empty string")
+
+          if not isinstance(metadata.get("groupshare_location_logs_red"), str):
+              errors.append('groupshare_location_logs_red must be a string (use "" if unused)')
 
           version = metadata.get("python_version")
           if not isinstance(version, str) or not re.fullmatch(r"3\.\d+", version):
               errors.append('python_version must be a quoted major.minor string, e.g. "3.12"')
 
-          rights = metadata.get("required_access")
-          if not isinstance(rights, list):
-              errors.append("required_access must be a list (use [] if no access is required)")
+          access = metadata.get("required_access")
+          if not isinstance(access, dict):
+              errors.append("required_access must contain bbs, sharepoint, and gropshare")
           else:
-              for index, name in enumerate(rights, start=1):
-                  if not isinstance(name, str) or not name.strip():
-                      errors.append(f"Access entry {index} must be a non-empty name")
+              for field in ("bbs", "sharepoint", "gropshare"):
+                  items = access.get(field)
+                  if not isinstance(items, list):
+                      errors.append(f"required_access.{field} must be a list (use [] if unused)")
+                  elif any(not isinstance(item, str) or not item.strip() for item in items):
+                      errors.append(f"required_access.{field} entries must be non-empty strings")
 
           if not Path("requirements.txt").is_file():
               errors.append("requirements.txt is required")
