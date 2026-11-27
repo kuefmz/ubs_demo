@@ -1,9 +1,12 @@
 # Repository governance demo
 
-Edit [project.yaml](project.yaml) for project values and [ci/validate.py](ci/validate.py)
-when required fields or validation rules change. CI checks the metadata and
-requires a `requirements.txt` update when `pyproject.toml`, `setup.py` or
-`setup.cfg` changes.
+Edit [project.yaml](project.yaml) for project values. The checks live in
+[.gitlab-ci.yml](.gitlab-ci.yml), and GitHub Actions runs the same validation.
+CI validates metadata, checks that `requirements.txt` exists, and requires an
+update when `pyproject.toml`, `setup.py` or `setup.cfg` changes.
+
+To move the GitLab demo, copy `.gitlab-ci.yml`, `project.yaml` and
+`requirements.txt` to the new repo root.
 
 ## GitHub demo
 
