@@ -1,0 +1,12 @@
+project_id: 1234
+project_name: Repository governance demo
+python_version: "3.12"
+owner: team-demo
+required_access:
+  bbs: [BBS_1, BBS_2]
+  sharepoint: []
+  gropshare: []
+groupshare_location_logs_green: '\\files.example.invalid\demo\logs'
+groupshare_location_logs_red: ""
+adt_application_id_prod: "ADT_ID_PROD"
+adt_application_id_uat: "ADT_ID_UAT"

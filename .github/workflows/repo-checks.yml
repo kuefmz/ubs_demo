@@ -1,0 +1,51 @@
+name: Repository checks
+
+'on':
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: python -m pip install PyYAML==6.0.3
+      - env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            diff_base="$(git merge-base "$BASE_SHA" "$HEAD_SHA")"
+            export CI_PIPELINE_SOURCE=merge_request_event
+            export REQUIREMENTS_UPDATED=false
+            if git diff --quiet "$diff_base" "$HEAD_SHA" -- requirements.txt; then
+              :
+            else
+              diff_status=$?
+              if [ "$diff_status" -ne 1 ]; then
+                exit "$diff_status"
+              fi
+              export REQUIREMENTS_UPDATED=true
+            fi
+          fi
+          python - <<'PY'
+          import subprocess
+          from pathlib import Path
+
+          import yaml
+
+          config = yaml.safe_load(Path(".gitlab-ci.yml").read_text(encoding="utf-8"))
+          subprocess.run(["bash", "-e", "-c", config["repo-checks"]["script"][0]], check=True)
+          PY
