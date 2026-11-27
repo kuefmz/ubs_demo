@@ -22,15 +22,24 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install PyYAML==6.0.3
-      - if: github.event_name == 'pull_request'
-        env:
+      - env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          diff_base=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
-          python ci/validate.py "$diff_base" "$HEAD_SHA"
-      - if: github.event_name == 'push'
-        run: python ci/validate.py
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            diff_base="$(git merge-base "$BASE_SHA" "$HEAD_SHA")"
+            export DIFF_BASE="$diff_base"
+            export DIFF_HEAD="$HEAD_SHA"
+          fi
+          python - <<'PY'
+          import subprocess
+          from pathlib import Path
+
+          import yaml
+
+          config = yaml.safe_load(Path(".gitlab-ci.yml").read_text(encoding="utf-8"))
+          subprocess.run(["bash", "-e", "-c", config["repo-checks"]["script"][0]], check=True)
+          PY
 
   release-tag:
     if: github.event_name == 'push'
