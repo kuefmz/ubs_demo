@@ -1,0 +1,41 @@
+name: Repository checks
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: python -m pip install PyYAML==6.0.3
+      - if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: python ci/validate.py "$(git merge-base "$BASE_SHA" "$HEAD_SHA")" "$HEAD_SHA"
+      - if: github.event_name == 'push'
+        run: python ci/validate.py
+
+  release-tag:
+    if: github.event_name == 'push' && github.ref_protected
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - run: git push origin "${GITHUB_SHA}:refs/tags/build-${GITHUB_SHA}"
