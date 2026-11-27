@@ -1,0 +1,33 @@
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"'
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"'
+
+stages:
+  - validate
+  - release
+
+default:
+  image: python:3.12-bookworm
+
+variables:
+  GIT_DEPTH: "0"
+
+repo-checks:
+  stage: validate
+  before_script:
+    - python -m pip install PyYAML==6.0.3
+  script:
+    - |
+      if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then
+        python ci/validate.py "$CI_MERGE_REQUEST_DIFF_BASE_SHA" "${CI_MERGE_REQUEST_SOURCE_BRANCH_SHA:-$CI_COMMIT_SHA}"
+      else
+        python ci/validate.py
+      fi
+
+release-tag:
+  stage: release
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_COMMIT_REF_PROTECTED == "true"'
+  script:
+    - git push "$CI_REPOSITORY_URL" "${CI_COMMIT_SHA}:refs/tags/build-${CI_COMMIT_SHA}"
