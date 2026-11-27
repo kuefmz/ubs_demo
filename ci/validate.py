@@ -34,15 +34,9 @@ def validate(base=None, head=None):
     if not isinstance(rights, list):
         errors.append("required_access must be a list (use [] if no access is required)")
     else:
-        for index, entry in enumerate(rights, start=1):
-            if not isinstance(entry, dict):
-                errors.append(f"Access entry {index} must contain group and permission")
-                continue
-            group = entry.get("group")
-            if not isinstance(group, str) or not group.strip():
-                errors.append(f"Access entry {index} needs a non-empty group")
-            if entry.get("permission") not in ("read", "write", "admin"):
-                errors.append(f"Access entry {index} permission must be read, write, or admin")
+        for index, name in enumerate(rights, start=1):
+            if not isinstance(name, str) or not name.strip():
+                errors.append(f"Access entry {index} must be a non-empty name")
 
     if not Path("requirements.txt").is_file():
         errors.append("requirements.txt is required")
