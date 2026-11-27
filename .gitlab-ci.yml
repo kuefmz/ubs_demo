@@ -5,43 +5,37 @@ workflow:
 
 stages:
   - validate
-  - release
 
 default:
-  image: python:3.12-bookworm
+  image: $VALIDATION_IMAGE
 
 variables:
-  GIT_DEPTH: "0"
+  VALIDATION_IMAGE: python:3.12-bookworm
 
 repo-checks:
   stage: validate
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes:
+        - requirements.txt
+      variables:
+        REQUIREMENTS_UPDATED: "true"
+    - when: on_success
   before_script:
     - python -m pip install PyYAML==6.0.3
   script:
     - |
-      if [ "${CI_PIPELINE_SOURCE:-}" = "merge_request_event" ]; then
-        export DIFF_BASE="$CI_MERGE_REQUEST_DIFF_BASE_SHA"
-        export DIFF_HEAD="${CI_MERGE_REQUEST_SOURCE_BRANCH_SHA:-$CI_COMMIT_SHA}"
-      fi
       python - <<'PY'
       """Validate repository metadata and dependency changes from the checkout root."""
       import os
       import re
-      import subprocess
       import sys
       from pathlib import Path
 
       import yaml
 
 
-      def changed_paths(base, head):
-          output = subprocess.check_output(
-              ["git", "diff", "--no-renames", "--name-only", "-z", base, head, "--"]
-          )
-          return set(os.fsdecode(output).split("\0")) - {""}
-
-
-      def validate(base=None, head=None):
+      def validate():
           errors = []
           metadata = yaml.safe_load(Path("project_config.yaml").read_text(encoding="utf-8"))
           if not isinstance(metadata, dict):
@@ -81,28 +75,20 @@ repo-checks:
 
           if not Path("requirements.txt").is_file():
               errors.append("requirements.txt is required")
-          if base and head:
-              changed = changed_paths(base, head)
-              dependency_files = {"pyproject.toml", "setup.py", "setup.cfg"}
-              if changed & dependency_files and "requirements.txt" not in changed:
-                  errors.append("Update requirements.txt when changing a dependency manifest")
-              print("requirements.txt:", "updated" if "requirements.txt" in changed else "unchanged")
+          elif (
+              os.environ.get("CI_PIPELINE_SOURCE") == "merge_request_event"
+              and os.environ.get("REQUIREMENTS_UPDATED") != "true"
+          ):
+              errors.append("requirements.txt must be updated in this merge request")
           return errors
 
 
       if __name__ == "__main__":
           try:
-              problems = validate(os.environ.get("DIFF_BASE"), os.environ.get("DIFF_HEAD"))
-          except (OSError, UnicodeError, yaml.YAMLError, subprocess.CalledProcessError) as error:
+              problems = validate()
+          except (OSError, UnicodeError, yaml.YAMLError) as error:
               sys.exit(f"Validation could not run: {error}")
           if problems:
               sys.exit("\n".join(problems))
           print("Repository checks passed")
       PY
-
-release-tag:
-  stage: release
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "main" && $CI_COMMIT_REF_PROTECTED == "true"'
-  script:
-    - git push "$CI_REPOSITORY_URL" "${CI_COMMIT_SHA}:refs/tags/build-${CI_COMMIT_SHA}"

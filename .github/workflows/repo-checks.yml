@@ -28,8 +28,17 @@ jobs:
         run: |
           if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
             diff_base="$(git merge-base "$BASE_SHA" "$HEAD_SHA")"
-            export DIFF_BASE="$diff_base"
-            export DIFF_HEAD="$HEAD_SHA"
+            export CI_PIPELINE_SOURCE=merge_request_event
+            export REQUIREMENTS_UPDATED=false
+            if git diff --quiet "$diff_base" "$HEAD_SHA" -- requirements.txt; then
+              :
+            else
+              diff_status=$?
+              if [ "$diff_status" -ne 1 ]; then
+                exit "$diff_status"
+              fi
+              export REQUIREMENTS_UPDATED=true
+            fi
           fi
           python - <<'PY'
           import subprocess
@@ -40,13 +49,3 @@ jobs:
           config = yaml.safe_load(Path(".gitlab-ci.yml").read_text(encoding="utf-8"))
           subprocess.run(["bash", "-e", "-c", config["repo-checks"]["script"][0]], check=True)
           PY
-
-  release-tag:
-    if: github.event_name == 'push'
-    needs: validate
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v6
-      - run: git push origin "${GITHUB_SHA}:refs/tags/build-${GITHUB_SHA}"

@@ -1,30 +1,21 @@
 # Repository governance demo
 
-Edit [project_config.yaml](project_config.yaml) for project values. The checks live in
-[.gitlab-ci.yml](.gitlab-ci.yml), and GitHub Actions runs the same validation.
-CI validates metadata, checks that `requirements.txt` exists, and requires an
-update when `pyproject.toml`, `setup.py` or `setup.cfg` changes.
-
-To move the GitLab demo, copy `.gitlab-ci.yml`, `project_config.yaml` and
-`requirements.txt` to the new repo root.
-
-## GitHub demo
-
-Open a PR to `main` and look for **Validate repository**. To enforce review,
-protect `main` with that required check and one approval, then enable native
-auto-merge. This requires a supported paid plan for a private repo.
-
-After validation passes on a push to `main`, Actions automatically creates
-`build-<commit SHA>`. Protect `main` to limit this to merged changes. If tag
-rules apply, allow the workflow identity to create these tags.
+Edit [project_config.yaml](project_config.yaml) for project values. Both CI
+workflows use the validation in [.gitlab-ci.yml](.gitlab-ci.yml). Validation
+requires `requirements.txt` to exist. Every merge request to `main` must also
+change it.
 
 ## GitLab setup
 
-Copy the files to GitLab, protect `main` against direct pushes, enable
-**Pipelines must succeed**, and require one approval (Premium or Ultimate).
-Select **Set to auto-merge** on the MR so GitLab merges after approval and checks.
+1. Copy `.gitlab-ci.yml`, `project_config.yaml`, and `requirements.txt` to the
+   repository root. In **Settings → CI/CD → Variables**, set
+   `VALIDATION_IMAGE` to your approved Python image and `PIP_INDEX_URL` to
+   your approved Python package index's `/simple/` URL. Make both variables
+   available to merge request pipelines.
+2. Open or update a merge request to `main`. GitLab detects the requirements
+   change using `rules:changes`. The job only needs Python, pip, and PyYAML.
+3. To enforce review, protect `main`, enable **Pipelines must succeed**, and
+   require an approval if your GitLab tier supports it. Use **Set to auto-merge**
+   on the merge request if desired.
 
-On GitLab 18.4+, enable **Allow Git push requests to the repository** under
-CI/CD job token permissions. The pipeline tags the validated commit on
-protected `main` automatically. If tags are protected, the identity that
-starts the pipeline needs permission to create `build-*` tags.
+GitHub Actions runs the same validator on pull requests and pushes to `main`.
