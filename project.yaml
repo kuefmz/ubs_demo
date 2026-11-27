@@ -1,0 +1,8 @@
+project_id: UBS-DEMO
+project_name: Repository governance demo
+python_version: "3.12"
+owner: team-demo
+required_access:
+  - group: demo-readers
+    permission: read
+groupshare_location: '//files.example.invalid/demo'
